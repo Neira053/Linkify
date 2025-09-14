@@ -6,9 +6,11 @@ import HomePage from "./pages/HomePage.jsx"
 import SignUpPage from "./pages/SignUpPage.jsx"
 import LoginPage from "./pages/LoginPage.jsx"
 import NotificationsPage from "./pages/NotificationsPage.jsx"
-import CallPage from "./pages/callPage.jsx"
+import CallPage from "./pages/CallPage.jsx"
 import ChatPage from "./pages/ChatPage.jsx"
 import OnboardingPage from "./pages/OnboardingPage.jsx"
+import ForgotPasswordPage from "./pages/ForgotPasswordPage.jsx"
+import ResetPasswordPage from "./pages/ResetPasswordPage.jsx"
 
 import { Toaster } from "react-hot-toast"
 
@@ -58,6 +60,14 @@ const App = () => {
         <Route
           path="/login"
           element={!isAuthenticated ? <LoginPage /> : <Navigate to={isOnboarded ? "/" : "/onboarding"} replace />}
+        />
+        <Route
+          path="/forgot-password"
+          element={!isAuthenticated ? <ForgotPasswordPage /> : <Navigate to={isOnboarded ? "/" : "/onboarding"} replace />}
+        />
+        <Route
+          path="/reset-password/:token"
+          element={!isAuthenticated ? <ResetPasswordPage /> : <Navigate to={isOnboarded ? "/" : "/onboarding"} replace />}
         />
         <Route
           path="/notifications"

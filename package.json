@@ -1,5 +1,5 @@
 {
-  "name": "streamify",
+  "name": "linkify",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -9,5 +9,5 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "A language learning platform with chat and video call features"
 }

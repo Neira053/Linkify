@@ -8,31 +8,24 @@ export const axiosInstance = axios.create({
 })
 
 // Helper function to get cookie value
-function getCookieValue(name) {
-  const value = `; ${document.cookie}`
-  const parts = value.split(`; ${name}=`)
-  if (parts.length === 2) return parts.pop().split(";").shift()
-  return null
-}
+const getCookieValue = (name) => {
+  const match = document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`));
+  return match ? match[2] : null;
+};
 
-// Request Interceptor: Attach token to every outgoing request
+// Request Interceptor: Add auth token to requests
 axiosInstance.interceptors.request.use(
   (config) => {
-    const tokenFromLocalStorage = localStorage.getItem("token")
-    const tokenFromCookie = getCookieValue("jwt")
-
-    const tokenToSend = tokenFromLocalStorage || tokenFromCookie
+    // Get token from cookie only - more secure than localStorage
+    const tokenToSend = getCookieValue("jwt");
 
     if (tokenToSend) {
       config.headers.Authorization = `Bearer ${tokenToSend}`
-      console.log(`[Axios Request] Token found: ${tokenToSend.substring(0, 10)}...`)
-    } else {
-      console.log("[Axios Request] No token found in localStorage or cookie for Authorization header.")
+      // Only log in development mode
+      if (import.meta.env.DEV) {
+        console.log(`[Axios Request] Token found: ${tokenToSend.substring(0, 10)}...`)
+      }
     }
-
-    console.log(
-      `[Axios Request] Preparing request to ${config.url}. Headers: ${JSON.stringify(config.headers)}. Cookies: ${document.cookie}`,
-    )
     return config
   },
   (error) => {
@@ -43,19 +36,33 @@ axiosInstance.interceptors.request.use(
 
 // Response Interceptor: Handle 401 Unauthorized errors
 axiosInstance.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Only log in development mode
+    if (import.meta.env.DEV) {
+      console.log(`[Axios Response] Response from ${response.config.url}`)
+    }
+    return response
+  },
   (error) => {
     if (error.response?.status === 401) {
-      console.log("[Axios Response] 401 Unauthorized received. Clearing auth data.")
+      // Only log in development mode
+      if (import.meta.env.DEV) {
+        console.log("[Axios Response] 401 Unauthorized error. Clearing auth data.")
+      }
+      // Clear auth data
       localStorage.removeItem("token")
       sessionStorage.removeItem("token")
-      document.cookie = "jwt=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;" // Clear the 'jwt' cookie
+      document.cookie = "jwt=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"
 
-      if (window.location.pathname !== "/login") {
+      // Redirect to login page if not already there
+      const currentPath = window.location.pathname
+      if (currentPath !== "/login" && currentPath !== "/signup") {
         window.location.href = "/login"
       }
+    } else if (import.meta.env.DEV) {
+      // Only log detailed errors in development mode
+      console.error("[Axios Response] Error:", error.response?.data || error.message)
     }
-    console.error("[Axios Response] Interceptor Error:", error.response?.data || error.message)
     return Promise.reject(error)
   },
 )

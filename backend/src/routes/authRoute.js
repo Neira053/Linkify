@@ -1,5 +1,5 @@
 import express from "express"
-import { login, logout, onboard, signup } from "../controllers/authController.js"
+import { login, logout, onboard, signup, forgotPassword, resetPassword } from "../controllers/authController.js"
 import { protectRoute } from "../middleware/authMiddleware.js"
 
 const router = express.Router()
@@ -7,6 +7,8 @@ const router = express.Router()
 router.post("/signup", signup)
 router.post("/login", login)
 router.post("/logout", logout)
+router.post("/forgot-password", forgotPassword)
+router.post("/reset-password", resetPassword)
 
 router.post("/onboarding", protectRoute, onboard)
 

@@ -1,6 +1,26 @@
 import { upsertStreamUser } from "../lib/stream.js"
 import User from "../models/User.js"
 import jwt from "jsonwebtoken"
+import crypto from "crypto"
+import { sendPasswordResetEmail } from "../utils/emailService.js"
+
+// Generate JWT token
+const generateToken = (id) => {
+  return jwt.sign({ userId: id }, process.env.JWT_SECRET_KEY, {
+    expiresIn: "30d",
+  });
+};
+
+// Set JWT cookie
+const setTokenCookie = (res, token) => {
+  // Set JWT as HTTP-only cookie
+  res.cookie('jwt', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production', // Secure in production
+    sameSite: 'strict',
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+  });
+};
 
 export async function signup(req, res) {
   const { email, password, fullName } = req.body
@@ -46,17 +66,10 @@ export async function signup(req, res) {
       console.log("Error creating Stream user:", error)
     }
 
-    const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET_KEY, {
-      expiresIn: "7d",
-    })
+    const token = generateToken(newUser._id)
 
-    // Set cookie for browser compatibility
-    res.cookie("jwt", token, {
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      httpOnly: true,
-      sameSite: "strict",
-      secure: process.env.NODE_ENV === "production",
-    })
+    // Set secure HTTP-only cookie
+    setTokenCookie(res, token)
 
     // Also return token in response for frontend storage
     res.status(201).json({
@@ -75,42 +88,142 @@ export async function login(req, res) {
     const { email, password } = req.body
 
     if (!email || !password) {
-      return res.status(400).json({ message: "All fields are required" })
+      return res.status(400).json({ message: "Please provide email and password" })
     }
 
     const user = await User.findOne({ email })
-    if (!user) return res.status(401).json({ message: "Invalid email or password" })
 
-    const isPasswordCorrect = await user.matchPassword(password)
-    if (!isPasswordCorrect) return res.status(401).json({ message: "Invalid email or password" })
+    if (!user) {
+      return res.status(401).json({ message: "Invalid email or password" })
+    }
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET_KEY, {
-      expiresIn: "7d",
-    })
+    const isMatch = await user.matchPassword(password)
 
-    // Set cookie for browser compatibility
-    res.cookie("jwt", token, {
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      httpOnly: true,
-      sameSite: "strict",
-      secure: process.env.NODE_ENV === "production",
-    })
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid email or password" })
+    }
 
-    // Also return token in response for frontend storage
+    const token = generateToken(user._id)
+
+    // Set secure HTTP-only cookie
+    setTokenCookie(res, token)
+
     res.status(200).json({
-      success: true,
-      user,
-      token: token,
+      _id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      profilePic: user.profilePic,
+      // Don't include token in response body for better security
     })
   } catch (error) {
-    console.log("Error in login controller", error.message)
-    res.status(500).json({ message: "Internal Server Error" })
+    console.error("Login error:", error)
+    res.status(500).json({ message: "Server error" })
   }
 }
 
-export function logout(req, res) {
-  res.clearCookie("jwt")
-  res.status(200).json({ success: true, message: "Logout successful" })
+export async function logout(req, res) {
+  try {
+    // Clear the JWT cookie
+    res.cookie('jwt', '', {
+      httpOnly: true,
+      expires: new Date(0), // Expire immediately
+      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production',
+    });
+    
+    res.status(200).json({ success: true, message: "Logout successful" })
+  } catch (error) {
+    console.error("Error in logout controller:", error.message)
+    res.status(500).json({ message: "Server error" })
+  }
+}
+
+export async function forgotPassword(req, res) {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found with this email" });
+    }
+
+    // Generate random token
+    const resetToken = crypto.randomBytes(20).toString('hex');
+    
+    // Set token and expiration (1 hour from now)
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+    
+    await user.save();
+
+    // Send email with reset link
+    try {
+      const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
+      await sendPasswordResetEmail(user.email, resetToken, resetUrl);
+      
+      res.status(200).json({
+        success: true,
+        message: "Password reset link has been sent to your email"
+      });
+    } catch (emailError) {
+      // If email sending fails, reset the token
+      user.resetPasswordToken = null;
+      user.resetPasswordExpires = null;
+      await user.save();
+      
+      console.error("Error sending reset email:", emailError);
+      return res.status(500).json({ message: "Error sending password reset email" });
+    }
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+}
+
+export async function resetPassword(req, res) {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ message: "Token and new password are required" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
+    // Find user with the given token and valid expiration
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: "Password reset token is invalid or has expired" });
+    }
+
+    // Set the new password
+    user.password = newPassword;
+    
+    // Clear the reset token fields
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+    
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Password has been reset successfully"
+    });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
 }
 
 export async function onboard(req, res) {

@@ -3,18 +3,18 @@ import User from "../models/User.js"
 
 export const protectRoute = async (req, res, next) => {
   try {
-    let token
-
-    // Check for Bearer token in Authorization header first
-    if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
-      token = req.headers.authorization.split(" ")[1]
-      console.log("Using Bearer token from Authorization header")
-    }
-    // Fallback to cookie-based token
-    else if (req.cookies.jwt) {
-      token = req.cookies.jwt
-      console.log("Using token from cookie")
-    }
+    // Check for token in Authorization header or cookies
+  let token;
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
+    // Get token from header
+    token = req.headers.authorization.split(" ")[1];
+  } else if (req.cookies.jwt) {
+    // Get token from cookie
+    token = req.cookies.jwt;
+  }
 
     if (!token) {
       console.log("No token found in request")

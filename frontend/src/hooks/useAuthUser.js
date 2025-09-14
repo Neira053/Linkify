@@ -22,6 +22,10 @@ const useAuthUser = () => {
     cacheTime: 10 * 60 * 1000, // Optional: cache data for 10 minutes
   })
 
-  return { isLoading: authUserQuery.isLoading, authUser: authUserQuery.data?.user }
+  return { 
+    isLoading: authUserQuery.isLoading, 
+    authUser: authUserQuery.data?.user, 
+    error: authUserQuery.error 
+  }
 }
 export default useAuthUser

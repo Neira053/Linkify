@@ -107,28 +107,34 @@ const LoginPage = () => {
                   </div>
 
                   <button
-                    type="submit"
-                    className="btn btn-primary w-full"
-                    disabled={isPending || !loginData.email || !loginData.password}
-                  >
-                    {isPending ? (
-                      <>
-                        <span className="loading loading-spinner loading-xs"></span>
-                        Signing in...
-                      </>
-                    ) : (
-                      "Sign In"
-                    )}
-                  </button>
+                      type="submit"
+                      className="btn btn-primary w-full"
+                      disabled={isPending}
+                    >
+                      {isPending ? (
+                        <>
+                          <span className="loading loading-spinner loading-xs"></span>
+                          Signing in...
+                        </>
+                      ) : (
+                        "Sign in"
+                      )}
+                    </button>
 
-                  <div className="text-center mt-4">
-                    <p className="text-sm">
-                      Don't have an account?{" "}
-                      <Link to="/signup" className="text-primary hover:underline">
-                        Create one
+                    <div className="text-center mt-2">
+                      <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+                        Forgot password?
                       </Link>
-                    </p>
-                  </div>
+                    </div>
+
+                    <div className="text-center mt-4">
+                      <p className="text-sm">
+                        Don't have an account?{" "}
+                        <Link to="/signup" className="text-primary hover:underline">
+                          Create one
+                        </Link>
+                      </p>
+                    </div>
                 </div>
               </div>
             </form>

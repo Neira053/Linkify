@@ -6,12 +6,22 @@ export const signup = async (signupData) => {
 }
 
 export const login = async (loginData) => {
-  const response = await axiosInstance.post("/auth/login", loginData)
-  return response.data
+  try {
+    const response = await axiosInstance.post("/auth/login", loginData)
+    // Token is now handled by HTTP-only cookies set by the server
+    return response.data
+  } catch (error) {
+    throw error.response?.data || { message: error.message }
+  }
 }
 export const logout = async () => {
-  const response = await axiosInstance.post("/auth/logout")
-  return response.data
+  try {
+    await axiosInstance.post("/auth/logout")
+    // Server will clear the HTTP-only cookie
+    return { success: true }
+  } catch (error) {
+    throw error.response?.data || { message: error.message }
+  }
 }
 
 export const getAuthUser = async () => {
@@ -27,6 +37,24 @@ export const getAuthUser = async () => {
 export const completeOnboarding = async (userData) => {
   const response = await axiosInstance.post("/auth/onboarding", userData)
   return response.data
+}
+
+export const forgotPassword = async (email) => {
+  try {
+    const response = await axiosInstance.post("/auth/forgot-password", { email })
+    return response.data
+  } catch (error) {
+    throw error.response?.data || { message: error.message }
+  }
+}
+
+export const resetPassword = async (token, newPassword) => {
+  try {
+    const response = await axiosInstance.post("/auth/reset-password", { token, newPassword })
+    return response.data
+  } catch (error) {
+    throw error.response?.data || { message: error.message }
+  }
 }
 
 // Friend-related API functions
